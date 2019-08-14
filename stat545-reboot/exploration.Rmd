@@ -1,0 +1,129 @@
+---
+title: "Exploration"
+author: "Grace Lawley"
+date: "8/13/2019"
+output: 
+  html_document:
+    theme: cosmo
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message = FALSE, warning = FALSE}
+library(readr)
+library(dplyr)
+library(purrr)
+library(stringr)
+library(knitr)
+library(tidyr)
+```
+
+
+# Jenny's 2016 syllabus
+
+```{r}
+syllabus_raw <- read_csv("../course-admin/class-meetings/class-meetings.csv")
+
+syllabus_raw %>% 
+  kable()
+```
+
+# Adapting Jenny's 2016 syllabus for the STAT545 reboot
+
+## Some restructuring 
+
+* Mapping *STAT545A* and *STAT547M* to Part I and Part II
+* Mapping each pair of cm's to Week 1, Week 2,..., Week 13
+* Mapping *tues* to *thurs* to A and B (so Week 1A, Week 1B, etc.)
+
+
+```{r}
+syllabus <- syllabus_raw %>% 
+  mutate(part = case_when(course == "STAT545A" ~ "I", course == "STAT547M" ~ "II"),
+         section = case_when(dow == "tues" ~ "A", dow == "thurs" ~ "B"), 
+         week = rep(seq(1, 13), each = 2),
+         week = str_c(week, section)) %>% 
+  select(part, week, raw_notes, cm) %>% 
+  rename(cm_notes = raw_notes)
+```
+
+## Gathering the class meeting (cm) file paths
+
+```{r}
+cm_df <- 
+  tibble(cm_file = list.files(path = "../", pattern = "^cm.*\\.md")) %>% 
+  mutate(cm = str_extract(cm_file, "cm[:digit:]{3}")) 
+
+cm_df %>% 
+  kable()
+```
+
+
+## Adding the cm file paths to the syllabus
+
+```{r}
+syllabus <- syllabus %>% 
+  left_join(cm_df, by = "cm") %>% 
+  select(part, week, cm, cm_notes, cm_file)
+
+syllabus %>% 
+  kable()
+```
+
+
+# Homework Files
+
+I haven't found a table linking each homework to a specific class meeting. The homeworks appear to be assigned within the class meetings. I do know that homework 01-05 were for STAT545A and homework 06-10 were for STAT547M.
+
+```{r}
+hw_df <- 
+  tibble(file = list.files(path = "../", pattern = "^hw.*\\.md")) %>% 
+  mutate(hw = str_extract(file, "hw[:digit:]{2}")) %>% 
+  group_by(hw) %>% 
+  nest(.key = "hw_file")
+
+hw_df %>% 
+  kable()
+```
+
+
+## Proposal for where to assign the homeworks 
+
+*These will likely change when I do a close look at each of the assignments and class meetings*
+
+```{r}
+hw_dates <- hw_df %>% 
+  # raw_notes are pulled from Jenny's syllabus
+  mutate(hw_notes = c("General Homework Guidelines", 
+                   "Edit README.md and Use R Markdown",
+                   "Explore Gapminder and use dplyr",
+                   "Manipulate, summarize, visualize Gapminder with dplyr and ggplot2",
+                   "Tidy data and joins",
+                   "Factor and figure management; Repo hygiene",
+                   "Data wrangling conclusion",
+                   "Automate a data analysis pipeline",
+                   "Build a Shiny app",
+                   "Write an R package",
+                   "Get data from the web"),
+         cm = c("cm001", "cm004", "cm006", "cm008", "cm010", "cm014",
+                "cm104", "cm106", "cm108", "cm110", "cm112"))
+
+
+hw_dates %>% 
+  kable()
+```
+
+
+```{r}
+syllabus %>% 
+  left_join(hw_dates, by = "cm") %>% 
+  select(part, week, cm, cm_notes, hw, hw_notes, cm_file, hw_file) %>% 
+  kable()
+
+```
+
+
+
+
